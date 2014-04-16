@@ -12,6 +12,17 @@ class notifu(object):
 		self.c = None
 		self.msgcallback = None
 		self.lastMSG = int(time.time())
+		self.loginStatus = False
+		self.readingStatus = False
+	def hardReconnect(self):
+		self.c.stop()
+		self.connect()
+		if self.loginStatus == True:
+			self.login(self.user, self.pw)
+		if self.readingStatus == True:
+			self.startReading();
+		self.lastMSG = int(time.time())
+		print("Reconnect Done")
 	def connect(self):
 		#print "Connect"
 		self.c = connection()
@@ -24,6 +35,8 @@ class notifu(object):
 		s["data"]["username"]=user
 		s["data"]["secret"]=pw
 		self.user = user
+		self.pw = pw
+		self.loginStatus = True
 		if(self.c!=None):
 			#print "Send Autentification"
 			self.c.sendLogin(json.dumps(s))
@@ -46,6 +59,7 @@ class notifu(object):
 		self.pT.setNotifu(self)
 		self.pT.start()
 		self.c.connectReader()
+		self.readingStatus = True
 	def setMessageCallback(self, c):
 		#print "SetCallBack"
 		self.msgcallback = c
@@ -111,6 +125,7 @@ class connection():
 	def stop(self):
 		self.c.stop()
 
+
 class pingThread(threading.Thread):
 	def setNotifu(self, n):
 		self.n = n
@@ -127,6 +142,8 @@ class pingThread(threading.Thread):
 				s["data"] = {}
 				s["data"]["username"]=self.n.user
 				self.n.c.send(json.dumps(s))
+			if(self.n.lastMSG+60<int(time.time())):
+				self.n.hardReconnect()
 class connectionThread(threading.Thread):
 	def _init__(self):
 		self.run = True
