@@ -11,6 +11,7 @@ class notifu(object):
 		#print "Create Notifu"
 		self.c = None
 		self.msgcallback = None
+		self.lastMSG = int(time.time())
 	def connect(self):
 		#print "Connect"
 		self.c = connection()
@@ -22,6 +23,7 @@ class notifu(object):
 		s["data"] = {}
 		s["data"]["username"]=user
 		s["data"]["secret"]=pw
+		self.user = user
 		if(self.c!=None):
 			#print "Send Autentification"
 			self.c.sendLogin(json.dumps(s))
@@ -40,6 +42,9 @@ class notifu(object):
 		return False
 	def startReading(self):
 		#print "StartReading"
+		self.pT = pingThread()
+		self.pT.setNotifu(self)
+		self.pT.start()
 		self.c.connectReader()
 	def setMessageCallback(self, c):
 		#print "SetCallBack"
@@ -47,6 +52,7 @@ class notifu(object):
 		
 	def stop(self):
 		self.c.stop()
+		self.pT.stop()
 	def incomingJson(self, jsonmsg):
 		#print "incoming JSON"
 		detais = None
@@ -59,7 +65,11 @@ class notifu(object):
 		if(detais!=None):
 			if(detais["action"]=="msg"):
 				if(self.msgcallback!=None):
+					self.lastMSG = int(time.time())
 					self.msgcallback(detais["data"]["subject"], detais["data"]["msg"])
+			if(detais["action"]=="pong"):
+				self.lastMSG = int(time.time())
+				print("Pong")
 		
 
 
@@ -101,6 +111,22 @@ class connection():
 	def stop(self):
 		self.c.stop()
 
+class pingThread(threading.Thread):
+	def setNotifu(self, n):
+		self.n = n
+		self.runv = True
+	def stop(self):
+		self.runv = False
+	def run(self):
+		while self.runv:
+			time.sleep(10)
+			if(self.n.lastMSG+30<int(time.time())):
+				print "PING"
+				s = {}
+				s["aktion"] = "ping"
+				s["data"] = {}
+				s["data"]["username"]=self.n.user
+				self.n.c.send(json.dumps(s))
 class connectionThread(threading.Thread):
 	def _init__(self):
 		self.run = True
@@ -122,13 +148,14 @@ class connectionThread(threading.Thread):
 		s.connect((ip, 9005))
 		#s.send('{"aktion":"autentifizierung", "data" : {"username":"soeren", "secret":"bla"}}')
 		s.send(self.loginMSG)
+		#print "LOGIN"
 		#s.close()
 		try: 
 			while self.run: 
 				#nachricht = raw_input("Nachricht: ") 
 				#s.send(nachricht) 
 				antwort = s.recv(1024) 
-				##print antwort
+				#print antwort
 				self.c(antwort)
 		except:
 			pass

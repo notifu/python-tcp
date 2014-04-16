@@ -5,11 +5,11 @@ def cbmsg(subject, msg):
 
 n = notifu()
 n.connect()
-n.login("user", "pw")
+n.login("soeren", "gelnhausen")
 n.setMessageCallback(cbmsg)
 n.sendMessage("soeren", "TEST LIB", "TEST LIB PYTHON")
 n.startReading()
 import time
-time.sleep(2)
+time.sleep(5)
 n.stop()
 
