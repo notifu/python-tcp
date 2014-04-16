@@ -14,8 +14,16 @@ class notifu(object):
 		self.lastMSG = int(time.time())
 		self.loginStatus = False
 		self.readingStatus = False
+		self.pingThreadStatus = False
 	def hardReconnect(self):
-		self.c.stop()
+		try:
+			self.c.stop()
+		except:
+			pass
+		if(self.pingThreadStatus==True):
+			self.pT.stop()
+			self.pT.setNotifu(self)
+			self.pT.start()
 		self.connect()
 		if self.loginStatus == True:
 			self.login(self.user, self.pw)
@@ -25,9 +33,12 @@ class notifu(object):
 		print("Reconnect Done")
 	def connect(self):
 		#print "Connect"
-		self.c = connection()
-		#print "Set Connect Callback"
-		self.c.setCallback(self.incomingJson);
+		try:
+			self.c = connection()
+			#print "Set Connect Callback"
+			self.c.setCallback(self.incomingJson);
+		except:
+			print "Kein Internet"
 	def login(self, user, pw):
 		s = {}
 		s["aktion"] = "autentifizierung"
@@ -58,15 +69,25 @@ class notifu(object):
 		self.pT = pingThread()
 		self.pT.setNotifu(self)
 		self.pT.start()
-		self.c.connectReader()
+		self.pingThreadStatus = True 
+		try:
+			self.c.connectReader()
+		except:
+			pass
 		self.readingStatus = True
 	def setMessageCallback(self, c):
 		#print "SetCallBack"
 		self.msgcallback = c
 		
 	def stop(self):
-		self.c.stop()
-		self.pT.stop()
+		try:
+			self.c.stop()
+		except:
+			pass
+		try:
+			self.pT.stop()
+		except:
+			pass
 	def incomingJson(self, jsonmsg):
 		#print "incoming JSON"
 		detais = None
@@ -141,7 +162,10 @@ class pingThread(threading.Thread):
 				s["aktion"] = "ping"
 				s["data"] = {}
 				s["data"]["username"]=self.n.user
-				self.n.c.send(json.dumps(s))
+				try:
+					self.n.c.send(json.dumps(s))
+				except:
+					pass
 			if(self.n.lastMSG+60<int(time.time())):
 				self.n.hardReconnect()
 class connectionThread(threading.Thread):
@@ -172,6 +196,7 @@ class connectionThread(threading.Thread):
 				#nachricht = raw_input("Nachricht: ") 
 				#s.send(nachricht) 
 				antwort = s.recv(1024) 
+				#print "."
 				#print antwort
 				self.c(antwort)
 		except:
